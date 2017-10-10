@@ -1,0 +1,887 @@
+---
+title: "Bayesian optimization - Lecture 2"
+author: "Hrvoje Stojic"
+date: "May 26, 2017"
+output: 
+  beamer_presentation:
+    theme: "boxes"
+    colortheme: "default"
+    fonttheme: "professionalfonts"
+    highlight: kate
+    slide_level: 2
+---
+
+
+```{r, knitr_options, include=FALSE}
+    
+    # loading in required packages
+    if (!require("knitr")) install.packages("knitr"); library(knitr)
+    if (!require("rmarkdown")) install.packages("rmarkdown"); library(rmarkdown)
+
+    # some useful global defaults
+    opts_chunk$set(warning=FALSE, message=FALSE, include=TRUE, echo=TRUE, cache=TRUE, cache.comments=FALSE, comment='##')
+
+    # output specific defaults
+    output <- opts_knit$get("rmarkdown.pandoc.to")
+    if (output=="html") opts_chunk$set(fig.width=10, fig.height=5)
+    if (output=="latex") opts_chunk$set(fig.width=6,  fig.height=4, 
+        dev = 'cairo_pdf', dev.args=list(family="Arial"))
+    
+```
+
+
+```{r, Setup_and_Loading_Data, echo=FALSE}
+   
+    # cleaning before starting
+    # rm(list = ls())
+
+    # setwd("/home/hstojic/Teaching/BGSE_DS_BayesOptim/source")
+
+    # rmarkdown::render("session2.Rmd", clean=TRUE, output_dir = "../handouts")
+   
+
+```
+
+
+
+
+# The multi-armed bandit (MAB) problem
+
+
+## Formulation
+
+\center
+\includegraphics[width=0.3\textwidth]{figs/octopus.jpeg}
+
+- A tuple $\langle \mathcal{A}, \mathcal{R} \rangle$  
+- $\mathcal{A}$ is a (stationary) set of $K$ actions/arms  
+- $\mathcal{R}^a(r) = P[r|a]$ is an unknown probability distribution over rewards  
+- At each step $t$ the agent selects an action $a_t \in \mathcal{A}$  
+- The environment generates a reward $r_t \sim \mathcal{R}^{a_t}$  
+- The goal is to maximise cumulative reward $\sum^t_{\tau=1} r_{\tau}$
+
+
+<!-- 
+
+- no state space, no transition function!
+
+- No delayed rewards, credit assignment problem, agents gets a reward immediately
+- Isolates EETO, with no function learning problem,
+- step before CMAB that has FL problem, correlated arms
+- No delayed rewards, credit assignment problem, agents gets a reward immediately
+
+For optimizing hyperpars?
+- as if you have locations/grid of hyperpar combinations, with each attempt you get some stochastic draw, you want to get at the best location in the grid
+
+What is MAB good for?
+- Alternative to AB testing, another way to do expeirments  
+- you want your users to spend as little time as possible in bad versions of the website/recommender system etc
+
+-->
+----
+
+
+## Regret
+
+. . . 
+
+- The **action-value** is the mean reward for action $a$, $Q(a) = E[r|a]$  
+
+. . . 
+
+- The **optimal value** $V^*$ is $V^* = Q(a^*) = \textrm{max}_{a \in \mathcal{A}} Q(a)$  
+
+. . . 
+
+- The **cumulative regret** is the total opportunity loss $L_t = E[\sum^t_{\tau=1} V^* - Q(a_{\tau})]$  
+
+. . . 
+
+- Regret can be expressed in terms of counts and gaps:  
+    + The count $N_t(a)$ is expected number of selections for action $a$  
+    + The gap $\Delta_a$ is the difference in value between action $a$ and optimal action $a^*$, $\Delta_a = V^* - Q(a)$  
+    + The cumulative regret, stated differently: $$L_t = \sum_{a \in \mathcal{A}} E[N_t(a)] (V^* - Q(a)) = \sum_{a \in \mathcal{A}} E[N_t(a)] \Delta_a$$  
+
+<!-- 
+- Maximise cumulative reward ≡ minimise total regret
+    - can be made independent of scaling? some advantage?
+    - fnc of gaps and counts
+    - good algo ensures small N for large gaps
+    - problem: gaps are not known!
+ -->
+----
+
+
+## Random exploration approaches
+
+- We consider algorithms that estimate $\hat{Q}_t(a) \approx Q(a)$, by simply tracking the means $$ \hat{Q}_t(a) = \frac{1}{N_t(a)} \sum^T_{t=1} r_t \mathbf{1}(a_t=a)$$ or $$ \hat{Q}_t(a) = \hat{Q}_{t-1}(a) + \alpha (r_t - \hat{Q}_{t-1}(a))$$
+
+. . . 
+
+- Three choice rules:  
+    + **greedy**: $a_t^* = \textrm{argmax}_{a \in \mathcal{A}} \hat{Q}_t(a)$  
+    + **$\epsilon$-greedy**: With probability $1 - \epsilon$ select $a_t^* = \textrm{argmax}_{a \in \mathcal{A}} \hat{Q}_t(a)$, with probability $\epsilon$ select a random action  
+    + **Softmax**: $P(a_t=a)=\frac{\exp(\hat{Q}_t(a)/\tau )}{\sum_{a'=1}^{K}\exp(\hat{Q}_t(a')/\tau )}$
+   
+<!-- 
+
+That is also called the learning rule
+- you might have seen it in its online version
+
+
+The greedy algorithm selects action with highest value
+- Greedy can lock onto a suboptimal action forever
+- Greedy has linear total regret
+
+epsilon greedy 
+- explores forever
+- does not lock itself, but still linear regret
+
+softmax
+- does the same, if temperature parameter is fixed
+
+-->
+----
+
+
+## Linear regret
+
+\center
+\includegraphics[width=\textwidth]{figs/linearregret.png}
+
+Source: [David Silver lectures](http://www0.cs.ucl.ac.uk/staff/D.Silver/web/Teaching.html)
+
+<!-- 
+
+why linear?
+- greedy - usually selects suboptimal arm and then each choice will increase the regret linearly 
+- epsilon greedy - lower slope, but still linear as it explores randomly with fixed probability, you always get some regret
+
+is sublinear possible?
+- decaying epsilon greedy
+    - use counts - proxy for CI (UCB)
+    - log asymptotic regret
+
+there is a lower bound for mab
+- we want to push the algos closer to that bound
+
+-->
+----
+
+
+## Lower bound on regret
+ 
+- Asymptotic total regret is at least logarithmic in number of steps (Lai & Robbins, 1985) $$\textrm{lim}_{t \to \infty} \ge \textrm{log}t \sum_{a|\Delta_a > 0} \frac{\Delta_a}{KL(\mathcal{R}^a \parallel \mathcal{R}^{a^*})}$$
+
+- Logarithmic regret, the second term (task difficulty) is a scalar  
+    + KL divergence says how similar the reward distributions of two arms are
+    + The difference in expected rewards between the arms is described by the gap, $\Delta_a$
+
+
+<!-- 
+
+KL divergence
+- indicates the difficulty of the problem, similarity between the distributions
+- Hard problems have similar-looking arms with different means
+
+-->
+----
+
+
+## Optimism in the face of uncertainty
+
+\center
+\includegraphics[width=\textwidth]{figs/posteriors.png}
+
+Source: [David Silver lectures](http://www0.cs.ucl.ac.uk/staff/D.Silver/web/Teaching.html)
+
+<!-- 
+
+Which action should we pick?
+- The more uncertain we are about an action-value
+- The more important it is to explore that action
+- It could turn out to be the best action
+
+Why is all this a heuristic?
+- the title is a give away :)
+- does not include effect of its own experience, no planning
+
+Some of the issues:
+- infinite action/state space - you explore all the time!
+- in reality you would want some safe exploration
+
+-->
+----
+
+
+## Optimistic initialization & $\epsilon_t$-greedy
+
+- $\epsilon$-greedy with optimistic initialization 
+    + Simple idea: initialise $\hat{Q}(a)$ to a high value  
+    + Update rule: $$ \hat{Q}_t(a_t) = \hat{Q}_{t-1}(a) + \frac{1}{N_t(a_t)} (r_t - \hat{Q}_{t-1}(a))$$ 
+    + Everything else stays the same!  
+
+. . . 
+
+- Decaying $\epsilon_t$-greedy (Auer, Cesa-Bianchi, Fischer, 2002)
+    + Pick a decay schedule for $\epsilon_1$, $\epsilon_2$, ...
+        * e.g. $\epsilon_t = \textrm{min} \{1, \frac{c|\mathcal{A}|}{\textrm{min}_a \Delta_a t}\}$
+    + Has logarithmic asymptotic total regret (for known gaps)
+    + In practice very good performance  
+    + Difficult to tune the decay
+
+<!-- 
+
+What does opt initialization do?
+- Encourages systematic exploration early on, proxy for everything is uncertain, has high informational value until you unlearn it
+- But can still lock onto suboptimal action
+- greedy + optimistic initialisation has linear total regret
+- e-greedy + optimistic initialisation has linear total regret
+
+Decaying $\epsilon$-greedy 
+- sublinear! if we know the gaps it achieves lai Robbins log bound
+
+Counts - 
+- A distribution free proxy for how certain you are about your Q values  
+- With UCB we see more why it is so
+- very little prior knowledge! no need to assume a distribution
+
+-->
+
+----
+
+
+## Upper Confidence Bounds (UCB)
+
+> - The main principle
+>     - Estimate an upper confidence $\hat{U}_t(a)$ for each action value, such that $Q(a) \le \hat{Q}_t(a) + \hat{U}_t(a)$ with high probability
+>     - Select action maximising Upper Confidence Bound (UCB) $$a_t = \textrm{argmax}  \hat{Q}_t(a) + \hat{U}_t(a)$$  
+
+> - UCB1 algorithm (Auer et al, 2002) $$a_t = \textrm{argmax}_{a \in \mathcal{A}}  Q(a) + \sqrt{\frac{2 \textrm{log} t}{N_t(a)}}$$
+
+> - Easily converted to a probabilistic version
+
+<!-- 
+
+Counts - 
+- A distribution free proxy for how certain you are about your Q values  
+- With UCB we see more why it is so
+- very little prior knowledge! no need to assume a distribution
+
+This depends on the number of times N(a) has been selected
+Small N t (a) ⇒ large Û t (a) (estimated value is uncertain)
+Large N t (a) ⇒ small Û t (a) (estimated value is accurate)
+
+Assumes...
+- t goes to infinity
+- nothing to tune 
+- no assumptions, works for any distribution
+- so originally a frequentist version, but we can have a probabilistic model that estimates the uncertainty directly, not using counts etc  
+    - not necessarily good, wrong prior can hurt...
+-->
+----
+
+
+## UCB1 derivation
+
+> - Hoeffding's Inequality
+>     + Let $X_1,..., X_t$ be IID random variables in $[0,1]$, and let $\bar{X}_t = \frac{1}{t} \sum^t_{\tau=1} X_{\tau}$ be the sample mean. Then  $$P[E[X] > \bar{X}_t + u] \le e^{-2tu^2}$$
+
+> - When applied to bandit setting, conditioned on arm $a$, $P[Q(a) > \hat{Q}_t(a) + U_t(a)] \le e^{-2N_t(a)U_t(a)^2}$ 
+
+> - Solving for $U_t(a)$, $U_t(a) = \sqrt{\frac{-\textrm{log} p}{2N_t(a)}}$
+>     - As $t \to \infty$ we want a tendency to select the optimal action, so we reduce $p$ as a function of time, e.g. $p = t^{-4}$
+>     - We arrive at $$U_t(a) = \sqrt{\frac{2 \textrm{log} t}{N_t(a)}}$$
+
+<!-- 
+
+there are various variants, whole family, using slightly different bounds
+- Chernoffs, Azuma, ...
+
+-->
+----
+
+
+## UCB comparison
+
+\center
+\includegraphics[width=\textwidth]{figs/UCBcomparison.png}
+
+Source: Auer, P., Cesa-Bianchi, N., & Fischer, P. (2002). Finite-time analysis of the multiarmed bandit problem. Machine Learning, 47, 235-256. 
+
+<!-- 
+
+et-greedy does quite well in many scenarios, see Auer 2002
+
+-->
+----
+
+
+## Bayesian bandits
+
+. . . 
+
+- So far we have made very few assumptions about the reward distribution $R$  
+
+. . . 
+
+- With Bayesian approach 
+    + We can exploit our prior knowledge of rewards, $P[R]$
+    + We get full posterior distributions of rewards $P[R|h_t]$
+
+. . . 
+
+- Use posterior instead of counts to guide exploration
+    + Bayesian UCB, $a_t = \textrm{argmax} \mu_a + \beta \sigma_a$
+    + Probability matching, selects action $a$ according to probability that $a$ is the optimal action, $$\pi(a|h_t) = P[Q(a) > Q(a'), \forall a' \neq a | h_t]$$
+
+
+. . . 
+
+- Wrong priors might cause issues.
+
+<!-- 
+
+Probability matching naturally trades off, probability that it is optimal reflects uncertainty as well!
+- Difficult to compute for larger number of arms 
+- But very easy to sample!
+
+-->
+
+----
+
+
+## Parametric Bayesian approach: Beta-Bernoulli bandit
+
+. . . 
+
+> - A generic probabilistic model parametrized by $\mathbf{w}$, with $\mathcal{D}$ denoting the data
+> - We can express our prior beliefs about the parameter values through $P[\mathbf{w}]$  
+> - Posterior is then obtained by applying the Bayes rule, $$P[\mathbf{w}|\mathcal{D}] = \frac{P[\mathcal{D}|\mathbf{w}]P[\mathbf{w}]}{P[\mathcal{D}]}$$
+> - Consider the MAB version where reward distribution of each arm follows Bernoulli distribution with unknown parameter $p \in (0,1)$ with rewards, $r \in {0,1}$   
+> - Reward of each arm is determined by function $f$ that takes index of an arm $a \in 1,...,K$ and returns parameter $p_a$  
+> - We can fully describe $f$ with parameter $\mathbf{w} \in (0,1)^K$ so that $f_{\mathbf{w}}(a)=w_a$  
+> - Observations are collected in $\mathcal{D}_t = \{(a_{\tau}, r_{\tau})\}_{\tau}^t$ as a set of tuples, where $a_{\tau}$ identifies the arm and $r_{\tau}$ is the reward
+
+<!-- 
+Bernoulli bandit 
+- K drugs and we wish to measure the efficacy of the tratiment (prob of a successful cure)  
+- AB testing
+-->
+----
+
+
+## Thompson Sampling for Beta-Bernoulli MAB problem
+
+. . . 
+
+- Classical choice for the prior is a conjugate to the Bernoulli likelihood, Beta distribution $$P[\mathbf{w}|\alpha,\beta] = \prod^K_{a=1} \textrm{Beta}(w_a|\alpha,\beta)$$
+
+. . . 
+
+- With such conjugate prior we can efficiently compute the posterior, $$P[\mathbf{w}|\mathcal{D}] = \prod^K_{a=1} \textrm{Beta}(w_a|\alpha + n_{,1}, \beta + n_{a,0})$$ 
+    + $n_{,1}$ is a count of 1 outcomes whenever for arm $a$ 
+    + $n_{a,0}$ is a count of 0 outcomes whenever for arm $a$ 
+
+. . . 
+
+- Thompson sampling (Thompson, 1933; Chapelle, Li, 2010)  
+    + Sample $\mathbf{w}'$ from each posterior and then maximize, $$a_{t+1} = \textrm{argmax}_a f_{\mathbf{w}'}(a), \textrm{where } \mathbf{w}' \sim P[\mathbf{w}|\mathcal{D}_t]$$  
+    + Thompson sampling achieves Lai and Robbins lower bound!  
+
+<!-- 
+
+\alpha,\beta - pseudocounts in Beta
+
+Thompson 
+- here it is possible to analytically compute the choice probabilities, for limited K  
+- Also called posterior sampling
+
+Parametric solution to MAB, importantly, uses the uncertainty
+
+We could have written this without invoking function f, but wanted to parat
+
+Benefits of the Thompson sampling
+1. only the prior, No free parameters   
+2. Naturally trading off exploration and exploitation - exploring only likely arms
+3. very fast! can be important, e.g. in ad placement Criteo is having auctions and needs to serve things while the webpage loads, needs to respond in ms
+4. great for batch updates and when rewards are a bit delayed - bcs it draws samples, its not going to take the same samples (a combo of decision noise and informational value)
+
+Disadvantages 
+- when sequence of steps, as in MDP, then due to its randomess that it adds in each step there is no consistency!
+
+-->
+
+----
+
+
+
+## Algorithm & Example
+
+\includegraphics[width=0.55\textwidth]{figs/betabernoulli_algo.png}\hfill
+\includegraphics[width=0.45\textwidth]{figs/betabernoulli.png}
+
+Source: Shahriari, B., Swersky, K., Wang, Z., Adams, R. P., & de Freitas, N. (2016). Taking the Human Out of the Loop: A Review of Bayesian Optimization. Proceedings of the IEEE, 104(1), 148-175. 
+
+<!-- 
+
+-->
+
+----
+
+
+
+
+# Contextual Multi-armed Bandit (CMAB) problem
+
+
+## Formulation
+
+- A tuple $\langle \mathcal{A}, \mathcal{S}, \mathcal{R} \rangle$  
+- We introduce the state representation again
+- $\mathcal{A}$ is a set of actions/arms  
+- $\mathcal{S}=P[s]$ is an unknown distribution over
+states (or "contexts") 
+- $\mathcal{R}^a(r) = P[r|s,a]$ is an unknown probability distribution over rewards  
+
+- At each step $t$ 
+    + The environment generates state $s_t \sim \mathcal{s}$  
+    + The agent selects an action $a_t \in \mathcal{A}$  
+    + The environment generates a reward $r_t \sim \mathcal{R}_{s_t}^{a_t}$  
+
+- The goal is to maximise cumulative reward $\sum^t_{\tau=1} r_{\tau}$
+
+\includegraphics[width=0.27\textwidth]{figs/branin.png}\hfill
+\includegraphics[width=0.3\textwidth]{figs/banners.jpg}\hfill
+\includegraphics[width=0.3\textwidth]{figs/yahoonews.png}
+
+
+<!-- 
+State could change or be different for each option 
+- e.g. different users could have their own function/state, or there is a different function for each product
+- for hyperparamter tuning things are simpler than that, we have a single reward function, single state
+- however, use an agent will still have a probability distribution over possible states
+-->
+----
+
+
+
+
+## Bayesian nonparametric approach: Gaussian Processes (GP)
+
+- Inducing a Gaussian prior over functions: $$f(\mathbf{x}) \sim \mathcal{GP}(m(\mathbf{x}),k(\mathbf{x},  \mathbf{x}'))$$
+
+- Here, $m(\mathbf{x})$ is a mean function modeling the expected output of the function and $k(\mathbf{x}, \mathbf{x}')$ is a kernel function modeling the covariance between different points. $$m( \mathbf{x}) = E[f(\mathbf{x})]$$ and $$k(x,x') = E [(f( \mathbf{x})-m(x))(f( \mathbf{x'})-m(x'))]$$  
+- The choice of an appropriate kernel is normally based on assumptions such as smoothness and likely patterns to be expected in the data.
+
+----
+
+
+## Gaussian Processes (GP)
+
+. . . 
+
+- Popular choice is the squared exponential (also called Gaussian or Radial Basis Function) kernel. $$k(x,x') =\sigma^2\exp\left(-\frac{(x-x')^2}{2\lambda^ 2}\right)$$
+
+. . . 
+
+- Correlation between two points decays according to a power function in dependency of the distance between the two points 
+- Covariance is symmetric, that is that only the distance between two points matters, but not the direction. 
+
+. . . 
+
+- Good for smooth functions, hyperparameters $\lambda$ (called the length-scale) and $\sigma^2$ (the noise constant) are normally optimized by using the marginal likelihood.
+
+----
+
+
+## Gaussian Processes (GP)
+
+- This implies the aforementioned distribution over functions as we can easily generate samples for new input points at location $X_\star$. $$\mathbf{f_\star} \sim \mathcal{N}(0, K\left(X_\star,X_\star)\right)$$
+
+. . . 
+
+- Given observations $\mathcal{D}=\{\mathbf{X}, \mathbf{y}\}$ with a noise level $\sigma$, we can draw new predictions from our function $\mathbf{f}_\star$ for inputs $X_\star$ as described below.
+
+\begin{align*}
+\begin{bmatrix}
+       \mathbf{y}         \\[0.3em]
+       \mathbf{f}_\star 
+     \end{bmatrix}
+\sim \mathcal{N}\left(\mathbf{0}, 
+ \begin{bmatrix}
+K(X,X)+\sigma^2 I & K(X,X_\star)       \\[0.3em]
+K(X_\star, X) & K(X_\star, X_\star)
+     \end{bmatrix}
+\right)
+\end{align*}
+
+
+----
+
+
+## Gaussian Processes (GP)
+
+- Treat a function as a vector of infinite size. 
+- We can simply draw outputs for finite points by using a multivariate normal distribution with a covariance matrix generated by our kernel. 
+- Calculating the expectation of the Gaussian Process at the new points is then
+\begin{align*}
+\mathbf{f}_\star|X,\mathbf{y},X_\star &\sim \mathcal{N}(\overline{\mathbf{f}}_\star, \text{cov}(\mathbf{f}_\star))
+\end{align*}
+
+- Predictions for new points are generated based on the expected mean value and covariance function of the posterior Gaussian Process. $$\mathbb{E}[\mathbf{f}_\star|X,\mathbf{y},X_\star]=K(X_\star,X)[K(X,X)+\sigma^2I]^{-1}\mathbf{y}$$$$\text{cov}(\mathbf{f}_\star)=K(X_\star,X_\star)-K(X_\star,X)[K(X,X)+\sigma^2I]^{-1}K(X,X_\star)$$
+
+----
+
+
+## Drawing from the GP prior and posterior
+
+\center
+\includegraphics[width=\textwidth]{figs/GPpriorpost.png}
+
+Source: Rasmussen, Williams (2006)
+
+----
+
+
+## Dependence on hyperparameters
+
+\center
+\includegraphics[width=0.8\textwidth]{figs/GPhyperdep.png}
+
+Source: Rasmussen, Williams (2006)
+
+----
+
+
+## Matern kernel
+
+\center
+\includegraphics[width=0.8\textwidth]{figs/GPmatern.png}
+
+Source: Rasmussen, Williams (2006)
+
+----
+
+
+## GP algorithm
+
+
+\center
+\includegraphics[width=0.7\textwidth]{figs/GPalgo.png}
+
+Source: Rasmussen, Williams (2006)
+
+
+----
+
+
+## Computational considerations and alternative regression models 
+
+. . . 
+
+- Although we have analytic expressions, exact inference in GP regression has a cost of $\mathcal{O}(n^3)$ 
+- Due to inversion of the covariance matrix  
+    + in practice using Cholesky decomposition reduces the cost to $\mathcal{O}(n^2)$  
+    + however, in BO we have to repeat it in every iteration as hyperparameters change  
+- With large budgets the cost might be prohibitive 
+    - Sparse GPs
+
+. . . 
+
+- Other alternative regression models? 
+    + Random Forests (SMAC, TPE)  
+    + Variance in predictions of the trees used as a proxy for uncertainty  
+    + Poor extrapolators 
+    + GPs are relatively bad as well, but they revert to prior far from the inputs, while RF is unrealistically confident
+
+----
+
+
+## GP-UCB
+
+
+\center
+\includegraphics[width=0.7\textwidth]{figs/GPUCB.png}
+
+- Regret bounds, Srinivas et al (2010) 
+
+- Expected improvement, Probability of improvement, Entropy search, predictive entropy search, Portfolios of acquisition functions (Hedge, Entropy search portfolio)
+
+<!-- 
+In portfolio multiple acq fncs propose potential queries and with some meta criterion we choose among them - acq fnc at a higher level
+ -->
+----
+
+
+## Expected Improvement
+
+- $EI(\textbf{x}) = \mathbb{E} \left[ \max \left\{0, f(\textbf{x}) - f(\hat{\textbf{x}}) \right\} \right],$ where $\hat{\textbf{x}}$ is the current optimal set of hyperparameters.  
+
+. . .
+
+- We can actually compute EI expectation under the GP model 
+\begin{align}
+EI(\textbf{x}) &= \left\{
+  \begin{array}{lr}
+    (\mu(\textbf{x}) - f(\hat{\textbf{x}})) \Phi(Z) + \sigma(\textbf{x})\phi(Z) & \text{if $\sigma(\textbf{x}) > 0$} \\
+    0 & \text{if $\sigma(\textbf{x}) = 0$}
+  \end{array}
+  \right. \\
+Z &= \frac{\mu(\textbf{x}) - f(\hat{\textbf{x}})}{\sigma(\textbf{x})}
+\end{align} 
+
+where $\Phi(z)$, and $\phi(z)$, are the cumulative distribution and probability density function of the (multivariate) standard normal distribution.
+
+. . .
+
+1. EI is high when the (posterior) expected value $\mu(\textbf{x})$ is higher than the current best value $f(\hat{\textbf{x}})$; or
+2. EI is high when the uncertainty $\sigma(\textbf{x})$ around the point $\textbf{x}$ is high.
+
+<!-- 
+
+Intuitively, this makes sense. If we maximize the expected improvement, we will either sample from points for which we expect a higher value of $f$
+, or points in a region of $f$ we haven’t explored yet ($\sigma(\textbf{x})$ is high). In other words, it trades off exploitation versus exploration.
+
+ -->
+
+----
+
+
+## Acquisition functions illustration 
+
+\center
+\includegraphics[width=0.7\textwidth]{figs/acqillustration.png}
+
+Source: Shahriari et al (2016)
+
+----
+
+
+## Optimizing acquisition functions 
+
+. . . 
+
+> - Only useful if cheap to evaluate relative to objective $f$ 
+> - Acquisition functions are often multimodal, not a trivial task  
+
+> - In practice: 
+>     + Discretization and grid search (e.g. Snoek et al 2012)  
+>     + Adaptive grids (Badernet, Kegl, 2010)
+>     + If gradients available (or can be approximated cheaply), then multi-started quasi-Newton hill climbing approach  
+>     + Difficult to asses the performance and there are few theoretical guarantees  
+
+> - Recent development: Optimistic optimization 
+>     + Use the same optimism in the face of uncertainty on acquisition function optimization level as well  
+>     + E.g. Wang, SShakibi, Jin and de Freitas (2014) propose BamSOO: shrink the region that we examine in every iteration to the most promising regions  
+
+<!-- 
+Some guarantees: exact optimizer is found and selected, not known usually
+-->
+----
+
+
+## Optimizing acquisition functions: Optimistic optimization (BamSOO)
+
+\center
+\includegraphics[width=0.6\textwidth]{figs/acqoptimization.png}
+
+Source: Shahriari et al (2016)
+
+----
+
+
+## Acquisition functions comparison 
+
+\center
+\includegraphics[width=0.45\textwidth]{figs/acqcomparison.png}
+
+- Shahriari et al (2016) conclude choice of acquisition function matters less than the regression model 
+
+----
+
+
+## Example: Tuning the SVM hyperparameters
+
+> -  20 dimensional problem, where the predictors are independent Gaussian random variables with mean zero and a variance of 9 (Sapp et al. 2014)
+
+> - training set: 250 data points 
+
+> - radial basis SVM to model the data  
+>     - two hyperparameters: cost and radial basis parameter
+
+> - example: [Revolutionanalytics.com](http://blog.revolutionanalytics.com/2016/06/bayesian-optimization-of-machine-learning-models.html)
+>     + using kernlab and rBayesianOptimization
+
+----
+
+
+## Example: RMSE surface
+
+\center
+\includegraphics[width=0.65\textwidth]{figs/SVMsurface.png}
+
+----
+
+
+## Example: Random search
+
+\center
+\includegraphics[width=0.65\textwidth]{figs/SVMrandom.png}
+
+----
+
+
+## Example: GP predictive mean (based on initial random search)
+
+\center
+\includegraphics[width=0.65\textwidth]{figs/SVMgpmean.png}
+
+----
+
+
+## Example: GP predictive variance (based on initial random search)
+
+\center
+\includegraphics[width=0.65\textwidth]{figs/SVMgpvar.png}
+
+----
+
+
+## Example: GP-UCB (based on initial random search)
+
+\center
+\includegraphics[width=0.65\textwidth]{figs/SVMucb.png}
+
+----
+
+
+## Example: GP-UCB solution after 30 evaluations
+
+\center
+\includegraphics[width=0.65\textwidth]{figs/SVMbofinal.png}
+
+----
+
+
+# Some extensions
+
+
+## *Full* Bayesian treatment
+
+. . . 
+
+> - GP with ARD would typically have $D+3$ hyperparameters: $D$ length scales, constant mean, noise variance $\sigma_n^2$ and signal variance $\sigma_f^2$  
+> - Instead of obtaining the point estimates of hyperparameters by optimizing the marginal likelihood, we should take into account uncertainty about GP's parameters when optimizing the acquisition function  
+> - Feasible with some functions like EI and PI   
+
+> - Integrated acquisition function $$\hat{a}(\mathbf{x}; {\mathbf{x}_t, y_t}) = \int a(\mathbf{x}; \{\mathbf{x}_t, y_t\}, \theta) P[\theta|\{\mathbf{x}_t, y_t\}^t]d\theta$$
+> - Monte Carlo estimate, can be acquired efficiently with slice sampling (see Murray & Adams, 2010)
+
+<!-- 
+
+see Snoek pg 4 
+- this is a correct generalization to account for uncertainty in hyperparameters
+
+ -->
+
+----
+
+
+## Example 
+
+\center
+\includegraphics[width=0.5\textwidth]{figs/integratedacquisition.png}
+
+Source: Snoek et al (2012). Practical Bayesian Optimization of Machine Learning Algorithms. In Advances in Neural Information Processing Systems (pp. 2951–2959). 
+
+<!-- 
+-->
+----
+
+
+## Taking into account modeling costs
+
+> - So far we have been concerned with finding good hyperparameters in fewest steps/evaluations possible  
+
+> - Sometimes a better goal is to minimize duration, wallclock time, not the number of function evaluations  
+> - Different combinations of hyperparameters can lead to very different evaluation times  
+
+> - Snoek et al (2012): *expected improvement per second*
+>     + Duration function is also not known  
+>     + $c(\mathbf{x}):\mathcal{X} \to R^{+}$
+>     + We can use the GP machinery to estimate $c()$ as well
+>     + Combine the predicted objective cost and duration
+
+<!-- 
+
+-->
+----
+
+
+## Example 
+
+\center
+\includegraphics[width=0.8\textwidth]{figs/EIpersec.png}
+
+Source: Snoek et al (2012). Practical Bayesian Optimization of Machine Learning Algorithms. In Advances in Neural Information Processing Systems (pp. 2951–2959). 
+
+<!-- 
+-->
+----
+
+
+## Parallelization
+
+. . . 
+
+> - if we are concerned with wallclock time, then a natural question is
+>    + what $\mathbf{x}$ should be evaluated next, even while a set of points is being evaluated?  
+>    + Ideally, we would do some planning (information state space search ala Gittins indices), but they are usually intractable  
+>    + Snoek et al (2012) propose to compute MC estimates of the acquisition function under different possible results from pending function evaluations 
+>    + With function like EI we can leverage Gaussian integration property
+
+<!-- 
+ -->
+
+----
+
+
+## Example 
+
+\center
+\includegraphics[width=0.5\textwidth]{figs/EIparallel.png}
+
+Source: Snoek et al (2012). Practical Bayesian Optimization of Machine Learning Algorithms. In Advances in Neural Information Processing Systems (pp. 2951–2959). 
+
+<!-- 
+-->
+----
+
+
+# Other applications of BO
+
+
+## Tackling any other (C)MAB problem
+
+- Ad placement: 
+    - Placing an ad that has been shown to attract the most clicks (exploiting)
+    - Or placing a different ad that we know less about, that might attract more clicks (exploring)
+
+- Recommender system
+    - People are interested in true exploration, not only seeing what other similar people have looked for  
+    - In some setups, like news recommendation, choice sets are changing all the time, RL approach is more suitable
+
+- Learning user preferences
+    - Market research, finding an optimal combination of features in a new product  
+    - E.g. tuning the recommender system so it is customized for each user 
+
+<!-- 
+
+- Ad placement: 
+- Market research: 
+- Recommender system: tunning the system so it is customized for each user 
+
+ -->
+
+----

@@ -1,0 +1,13 @@
+# folders
+archive
+sensitive
+notes
+solutions
+play
+resources
+
+# files
+*out
+*.doc
+*.pdf
+.Rdata

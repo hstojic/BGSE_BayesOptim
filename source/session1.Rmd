@@ -1,0 +1,797 @@
+---
+title: "Bayesian optimization - Lecture 1"
+author: "Hrvoje Stojic"
+date: "May 25, 2017"
+output: 
+  beamer_presentation:
+    theme: "boxes"
+    colortheme: "default"
+    fonttheme: "professionalfonts"
+    highlight: kate
+    slide_level: 2
+---
+
+
+```{r, knitr_options, include=FALSE}
+    
+    # loading in required packages
+    if (!require("knitr")) install.packages("knitr"); library(knitr)
+    if (!require("rmarkdown")) install.packages("rmarkdown"); library(rmarkdown)
+
+    # some useful global defaults
+    opts_chunk$set(warning=FALSE, message=FALSE, include=TRUE, echo=TRUE, cache=TRUE, cache.comments=FALSE, comment='##')
+
+    # output specific defaults
+    output <- opts_knit$get("rmarkdown.pandoc.to")
+    if (output=="html") opts_chunk$set(fig.width=10, fig.height=5)
+    if (output=="latex") opts_chunk$set(fig.width=6,  fig.height=4, 
+        dev = 'cairo_pdf', dev.args=list(family="Arial"))
+    
+```
+
+
+```{r, Setup_and_Loading_Data, echo=FALSE}
+   
+    # cleaning before starting
+    # rm(list = ls())
+
+    # setwd("/home/hstojic/Teaching/BGSE_DS_BayesOptim/source")
+
+    # rmarkdown::render("session1.Rmd", clean=TRUE, output_dir = "../handouts")
+   
+
+```
+
+
+# The roadmap
+
+
+## The problem 
+
+. . .
+
+- What are the hyperparameters and how do we optimize them?
+
+. . .
+
+> - Some examples:  
+>      + SVM: regularisation term C, kernel parameters  
+>      + Logistic regression: SGD learning rate, regularization parameter, mini batch size, number of epochs  
+>      + Online Latent Dirichlet Allocation: two learning rate parameters, mini batch size  
+>      + Three-layer convolutional neural network: SGD learning rate, number of epochs, 4 x weight costs (layers and softmax), width, scale and power (the response normalization on the pooling layers)   
+
+. . .
+
+> - Standard procedures  
+>      + Grid search  
+>      + Random Search
+
+. . .
+
+- What are (dis)advantages of the usual approaches?
+
+<!-- 
+What are the hyperpars?
+- parameters that govern the behavior of other parameters and/or determine their number
+
+What is the issue with optimizing hyperpars?
+- if they need an encouragement: say catgorization problem and model that can perfectly fit data, say kNN? how do you fit k?
+- what did you do so far? 
+- any kaggle competition?
+
+Examples (from Snoek et al)
+- SVM has a bit more than just C?
+- Online LDA (Hoffman et al 2010) uses variational bayes
+- this is a particular example, once you already set an architecture!
+
+Disadvantages of the existing approaches?
+- can be very costly! 
+- training a complicated NN can last for days 
+- we want to reduce the number of evaluations!
+
+Advantages?
+- embarrassingly parallel and user friendly
+- trivial to submit 20*20*20 jobs to my cluster and just wait for them to finish
+- psych, you are not losing a job, automated statistician...Somehow I need to believe that I'm not better than these algorithms at tuning hyperparameters
+ 
+-->
+
+----
+
+
+## A closer look at the problem
+
+> - What is the alternative?
+
+> - Sequential model-based optimization (SMBO) algorithms  
+>     + We build a model of the optimization surface
+>     + Make active choices where to sample next
+
+> - Learning a model 
+>     + We can leverage our supervised learning machinery  
+>     + Probabilistic approaches more helpful
+
+> - Active selection?  
+>     + Involves balancing exploration and exploitation
+>     + Strong interaction between the two processes  
+>     + Calls for smart selection, probabilistic models make it easier 
+
+> - When does it make sense?
+>     + Optimizing SMBO can be a hard problem  
+>     + Hence, when optimizing costly models, i.e. when time or number of evaluations is very valuable    
+
+<!-- 
+
+How do we go about this?
+- anyone tried any of the alternatives? any ideas?
+
+This makes sense only if this optimization problem is less costly than the original training
+- hence, we dont use it for models that are quick to train  
+
+-->
+----
+
+
+
+## The main goal - Automated statistician and hyperparameter tuning
+
+\includegraphics[width=0.5\textwidth]{figs/Snoek.png}\hfill
+\includegraphics[width=0.5\textwidth]{figs/Bergstra.png}
+
+Source: Snoek et al 2012; Bergstra et al 2011
+
+<!-- 
+
+Snoek
+- conv nets, 3 layer, 9 hypers
+- CiFAR 10, 60000 32x32 colour images in 10 classes, with 6000 images per class
+- at that time state of the art was 18% test error data, they achieved 14.98%
+
+Bergstra 2011
+- MNIST rotated background images, dataset (MRBI), 
+- In another dataset (convex),
+
+-->
+----
+
+
+## Entrepreneurship
+
+\center
+\includegraphics[width=\textwidth]{figs/sigopt.png}
+
+Source: [SigOpt webpage](https://www.sigopt.com)
+
+<!-- 
+
+-->
+----
+
+
+## Bonus - A/B testing
+
+\center
+\includegraphics[width=\textwidth]{figs/ABtesting.png}
+
+Source: [Wikipedia](https://en.wikipedia.org/wiki/A/B_testing#/media/File:A-B_testing_example.png)
+
+<!-- 
+
+-->
+----
+
+
+## Bonus - Recommender systems and ad placement
+
+\center
+\includegraphics[width=0.9\textwidth]{figs/criteo.png}
+
+Source: [Criteo webpage](https://www.criteo.com)
+
+<!-- 
+
+-->
+----
+
+
+## Bonus - Preference learning and interactive user interfaces
+
+\center
+\includegraphics[width=0.9\textwidth]{figs/netflix.png}
+
+Source: [Netflix webpage](https://www.netflix.com)
+
+<!-- 
+preference learning 
+- Modern market research
+- one could think of actively querying ppl's preferences to customize the recommendations 
+    - e.g. netflix, instead of collabroative filtering, what works for most people 
+    - or financial advisor for making stock investments 
+-->
+----
+
+
+## Bonus - Combinatorial optimization
+
+\center
+\includegraphics[width=0.65\textwidth]{figs/salesman.png}
+
+Source: [Wikipedia](https://en.wikipedia.org/wiki/Travelling_salesman_problem#/media/File:GLPK_solution_of_a_travelling_salesman_problem.svg)
+
+<!-- 
+
+Mixed Integer Programming Solvers 
+- 76 pars, 
+- take a long time
+- schedulers, Production planning
+- IBM ILOG C PLEX —the most widely used commercial MIP solver
+
+-->
+----
+
+## The roadmap
+
+. . . 
+
+- Reinforcement learning basics
+    + Agents, environments, rewards, states, MDPs
+    + Exploration exploitation problem
+
+. . . 
+
+- MAB problem 
+    + Classics: $\epsilon$-greedy
+    + Frequentist: UCB1 
+    + Bayesian parametric: Thompson Beta-Bernoulli  
+
+. . . 
+
+- CMAB problem  
+    + Frequentist parametric: LinUCB   
+    + Bayesian non-parametric: GP-UCB  
+
+. . . 
+
+- Extensions and applications 
+
+<!-- 
+Another reason for going into RL
+- you will understand the problem at a deeper level which will allow you to apply BO in wider number of setups, not just the 
+-->
+----
+
+
+## References 
+
+- Reinforcement learning
+    + Sutton, R., & Barto, A. (2017). Introduction to Reinforcement Learning (book free of charge: [www.incompleteideas.net/sutton/book/the-book.html](http://www.incompleteideas.net/sutton/book/the-book.html))
+    + D. Silver's lectures (videos and slides: [www0.cs.ucl.ac.uk/staff/D.Silver/web/Teaching.html](http://www0.cs.ucl.ac.uk/staff/D.Silver/web/Teaching.html))
+- Gaussian Processes
+    + Rasmussen, C. E., & Williams, C. K. I. (2006). Gaussian processes for machine learning. MIT Press. (book free of charge: [www.gaussianprocess.org/gpml/](http://www.gaussianprocess.org/gpml/))  
+    + Karl Rasmussen's lectures 
+    + Nando De Freitas' lectures (videos and slides: [www.youtube.com/user/ProfNandoDF/videos](https://www.youtube.com/user/ProfNandoDF/videos))
+
+----
+
+
+## References 
+
+- Bayesian optimization  
+    + Shahriari, B., Swersky, K., Wang, Z., Adams, R. P., & de Freitas, N. (2016). Taking the Human Out of the Loop: A Review of Bayesian Optimization. Proceedings of the IEEE, 104(1), 148–175.  
+    + Snoek, J., Larochelle, H., & Adams, R. P. (2012). Practical Bayesian Optimization of Machine Learning Algorithms. Advances in Neural Information Processing Systems, 2951-2959.  
+
+----
+
+
+
+## Software
+
+- R packages
+    + GPfit, gptk, FastGP
+    + rBayesianOptimization (Yan) 
+    + DiceOptim (Roustant et al., 2012)
+- Python libraries  
+    + scikit-learn  
+    + Hyperopt (Bergstra et al., 2011)  
+    + Spearmint (Snoek et al., 2014)
+- Matlab  
+    + GPML (Rasmussen)  
+- C++  
+    + BayesOpt (Martinez-Cantin, 2014)  
+- Java  
+    + SMAC (Hutter et al., 2011)  
+
+----
+
+
+## Practicalities 
+
+- Contact: 
+    - h.stojic_at_ucl.ac.uk  
+    - Office hours by video calls
+
+- Evaluation:  
+    + No exam  
+    + Individual problem set (two coding exercises): 40%
+    + Group projects: 60%
+    + Deadline: June 20
+
+----
+
+
+
+# Introduction to Reinforcement Learning
+
+
+## Interdisciplinary area 
+
+\center
+\includegraphics[width=0.8\textwidth]{figs/manyfaces.png}
+
+Source: [David Silver lectures](http://www0.cs.ucl.ac.uk/staff/D.Silver/web/Teaching.html)
+
+<!-- 
+Lot of different approaches
+- terminology different
+- different applications and solutions
+- at the center is the optimal way to make decisions
+
+Psychology probably the earliest
+- Thurstone (1927)
+- Thompson (1933)
+- Statistics during WWII - Robbins?
+
+-->
+----
+
+
+## Relation to other types of learning 
+
+\center
+\includegraphics[width=0.8\textwidth]{figs/relationtootherlearning.png}
+
+Source: [David Silver lectures](http://www0.cs.ucl.ac.uk/staff/D.Silver/web/Teaching.html)
+
+<!-- 
+In some ways signal is stronger than in unsupervised and weaker than supervised.
+- clear in classification case 
+- you get what is a correct label i.e. information on counterfactual - all others are wrong
+- while in reinforcement feedback does not contain the counterfactual information
+
+But there are lots of other differences
+- agents have to act, has the EETO, 
+-->
+----
+
+
+## Main characteristics 
+
+- Agent receives rewards   
+    + There is no teaching signal  
+    + Agent does not observe the counterfactual
+    + Goal of the agent is to maximize rewards  
+
+. . . 
+
+- Agent has to take actions  
+    + Exploration exploitation trade off  
+    + Feedback is (potentially) delayed, credit assignment problem  
+    + Sacrificing immediate reward to gain more later on
+    + Actions (potentially) affect the subsequent data  
+    + Sequential, non IID data 
+
+. . . 
+
+- Examples  
+    + Robots, autonomous vehicles  
+    + Managing investment portfolio  
+    + Optimizing the data centres  
+
+<!-- 
+Example:
+- robot moving through the world 
+- when it moves one step what it can see changes, it affected the  observations it receives, actions it can take in that location  
+- does it open door to a room? will it find the charging station or nasty kids that will hurt it
+
+Sacrifising
+- Blocking opponent moves (might help winning chances many moves from now)
+- You studying now instead of working :)
+
+Show RL playing Atari!!!
+- the only framework that can do this
+-->
+----
+
+
+## Reward hypothesis 
+
+- Reward, $R_t$, is a **scalar** feedback signal   
+    + Signals how well agent is doing at time $t$ 
+    + Agent maximizes the long run sum of rewards  
+    + Exogenously given  
+
+. . . 
+
+- Reward Hypothesis  
+    + All goals can be described by the maximisation of expected cumulative reward
+
+. . . 
+
+- Examples  
+    + Pain if you lose a body part, satisfaction from food  
+    + Negative reward for moving in the gridworlds  
+    + Positive/negative reward for increasing/decreasing score in Atari videogames  
+
+<!-- 
+- exogenously given
+- think of it as being shaped by evolution
+    - evo hard wired us to feel pain for certain events, bcs it reduces chances of survival, i.e. those that feel pain were surviving 
+    - does not prevent evolution to hardwire reward from playing
+
+- in AI we engineer it, e.g. in gridworlds it is useful to use -1 for each step
+
+- why a scalar?
+    - you need a ruler! regardless how different things are you need to compare them to make a decision
+    - e.g. staying at work or meeting your girlfriend
+
+Do you agree with this statement?
+- you either buy it or not
+
+-->
+----
+
+
+## Agent and environment
+
+\center
+\includegraphics[width=0.6\textwidth]{figs/agentenvironment.png}
+
+Source: [David Silver lectures](http://www0.cs.ucl.ac.uk/staff/D.Silver/web/Teaching.html)
+
+<!-- 
+At each step t the agent:
+- Executes action A t
+- Receives observation O t
+- Receives scalar reward R t
+
+The environment:
+- Receives action A t
+- Emits observation O t+1
+- Emits scalar reward R t+1
+
+t increments at env. step
+
+E is given, A can only influence it through actions 
+- think of a fisherman in a lake
+
+Even if there are other agents in the world, from agents perspective thats part of the environment, does not change the formalism.
+
+-->
+----
+
+
+## History and State
+
+. . . 
+
+- **The history** is the sequence of observations, actions, rewards $$H_t = O_1, R_1, A_1, ..., A_{t-1}, O_t, R_t$$  
+    + The agent selects action $A_t$ based on $H_t$  
+    + The environment selects observations and rewards
+
+. . . 
+
+>  - **The state** is a summary information of the history, some function of it $$S_t = f(H_t)$$  
+>      + The environment state $S_t^e$, private representation of $H_t$  
+>          * Agents might or might not observe parts of it  
+>          * E.g. this might be a true cost function of hyperparameters  
+>      + The agent state $S_t^a$, internal representation  
+>          * Important part, used by algorithms  
+>          * E.g. agent might use hyperparameter values to estimate the cost function  
+>          * Many choices, what to remember and what to throw away of $H_t$  
+>          * E.g. estimate function in parametric way and keep parameters  
+
+<!-- 
+
+History contains EVERYTHING:
+- i.e. all observable variables up to time t
+- i.e. the sensorimotor stream of a robot or embodied agent
+
+Issue - history can be huge!
+- think of number of states in bacgammon, 10^20, go, 10^120
+
+VIP - States
+- It is ANY function of the history
+
+Environment state
+- whatever data the environment uses to pick the next observation/reward
+- even if partially visible, it may contain irrelevant information
+- not useful for building an agent!
+
+Agents state
+- the most important part, one we use in algos
+- actually, often it is an engineering problem, how to represent information from the environment in a useful way 
+    - E.g. pole balancing car, angle, velocity, location?
+
+-->
+----
+
+
+## What is the agent's state? 
+
+\includegraphics[width=0.5\textwidth]{figs/ratproblem.png}
+
+. . . 
+
+- Last 3 items in sequence?  
+
+. . . 
+
+- Counts for lights, bells and levers?  
+
+. . . 
+
+- Complete sequence?
+
+
+<!-- 
+All 3 are valid suggestions, perhaps rat needs to get more experience to figure it out
+-->
+----
+
+
+## More about environments 
+
+. . .     
+
+> - A state $S_t$ is Markov if and only if $$P[S_{t+1}|S_t] = P[S_{t+1}|S_1, ..., S_t]$$  
+>     + The future is independent of the past given the present  
+>     + We have all the information necessary for making optimal choices  
+
+> - Fully observable environment  
+>     + Agent can observe environment state  $O_t = S_t^a = S_t^e$  
+>     + This is a Markov decision process (MDP)
+
+> - Partially observable environment (POMDP) 
+>     + Agent can indirectly observe environment state  
+>     + Using this info agent constructs the state 
+>         * E.g. beliefs of environment state: $S_t^a = (P[S_t^e = s^1],..., P[S_t^e = s^n])$  
+>     + E.g. in hyperparameter case, we partially observe environment state through hyperparameter values  
+>     + E.g. investment agent observes prices, but not trends etc  
+
+
+
+<!-- 
+Markov 
+- Once the state is known, the history may be thrown away
+- i.e. The state is a sufficient statistic of the future
+- The environment state S t e is Markov (but unknowable)
+- The history H t is Markov (but impractical)
+
+MDP 
+- Atari agent observes what happens in the atari emulator  
+- can use it to simulate everything and come up with the optimal solution
+
+
+POMDP
+- A robot with camera vision isn’t told its absolute location
+- A trading agent only observes current prices
+- A poker playing agent only observes public cards  
+- Atari agent does not observe what happens in the atari emulator
+
+Complete history: S t a = H t
+Recurrent neural network: S t a = σ(S t−1 W s + O t W o )
+-->
+----
+
+
+## Constructing the Agent 
+
+. . . 
+
+- **Policy**: 
+    + Agent’s behaviour function  
+    + Deterministic policy: $a = \pi(s)$
+    + Stochastic policy: $\pi(a|s) = P[A_t = a|S_t = s]$
+
+. . . 
+
+- **Value function**:  
+    + Agent uses it to predict future reward, determines how good is each state and/or action  
+    + Used to select between actions  
+    + $V_{\pi}(s) = E_{\pi}[R_{t+1} + \gamma R_{t+2} + ... | S_t = s]$
+
+. . . 
+
+- **Model**: agent’s representation of the environment, predicts
+    + What the environment will do next  
+    + The next state: $\mathcal{P}_{ss'}^a = P[S_{t+1} = s'|S_t = s, A_t = a]$
+    + The next reward: $\mathcal{R}_{s}^a = E[R_{t+1}|S_t = s, A_t = a]$
+
+<!-- 
+
+main components
+- not an exhaustive list 
+- not all required 
+
+Policy 
+- a map from state to action
+- can be deterministic, if robot decides to move north, it moves north with probability 1
+- stochastic, with some probability it moves in direction that was not intended
+    - very useful for exploration
+
+Value function
+- note the infinite sum, finite with discount factor
+- estimates the long-term reward of this state  
+- one way to learn it, in restricted set of problems is through value iteration
+  - dynamic programming
+- note the dependence on policy, if you have a fixed RCM policy, its learning history will be different
+
+Model:
+- optional, agent can benefit by knowing it a bit
+- gives transition probabilities
+- we can use it to simulate what happens in the world and do planning
+- can be learned 
+- 
+-->
+----
+
+
+## Gridworld example 
+
+\includegraphics[width=0.25\textwidth]{figs/hallway1.png}\hfill
+\includegraphics[width=0.25\textwidth]{figs/hallway3.png}\hfill
+\includegraphics[width=0.3\textwidth]{figs/hallway2.png}
+
+Source: Sutton, Precup & Singh (1999). Between MDPs and semi-MDPs: A framework for temporal abstraction in reinforcement learning. Artificial Intelligence, 112 (1-2), 181-211.
+
+<!-- 
+Problem setup 
+- Rewards: -1 per time-step
+- Actions: N, E, S, W
+- States: Agent’s location
+
+Value function
+- Numbers represent value v_pi(s) of each state s
+- note they depend on the policy!
+
+Policy or behavior, choice rules
+- Arrows represent policy π(s) for each state s 
+- example of policy
+
+-->
+----
+
+
+## Types of agents 
+
+- Value Based: No Policy, Value Function  
+- Policy Based: Policy, No Value Function  
+- Actor Critic: Policy, Value Function
+
+. . . 
+
+- Model-Free: Policy and/or Value Function, but no Model
+- Model-Based: Policy and/or Value Function, Model
+
+<!-- 
+
+-->
+----
+
+
+## Exploration exploitation problem
+
+- Acting involves a fundamental trade-off:  
+    + **Exploitation**: Make the best decision given current information
+    + **Exploration**: Gather more information  
+
+. . . 
+
+- The best long-term strategy may involve short-term sacrifices  
+
+. . . 
+
+- **Goal**: Gather enough information to make the best overall decisions  
+
+. . .  
+
+- Examples:  
+    + Going to a favourite restaurant (**exploitation**), or try a new restaurant (**exploration**)  
+    + Show the most successful ad (**exploitation**), or show a new ad (**exploration**)
+
+<!-- 
+
+Reinforcement learning is like trial-and-error learning
+- The agent should discover a good policy
+- From its experiences of the environment
+- Without losing too much reward along the way
+
+Lets return to the notion of decision making
+- in focusing on it we will remove certain elements of RL
+- MABs - no delayed rewards, dynamical system
+
+Problem unique to RL
+- arises when you need to act
+- what are the main ingredients?
+    - partial feedback 
+    - stochastic output
+
+I will not go into other problems in RL as they will not be relevant for us
+- Learning vs Planning
+    - Reinforcement Learning:
+        The environment is initially unknown
+        The agent interacts with the environment
+        The agent improves its policy
+    - Planning:
+        A model of the environment is known
+        The agent performs computations with its model (without any         external interaction)
+        The agent improves its policy a.k.a. deliberation, reasoning, introspection, pondering, thought, search
+- Prediction and Control
+    - Prediction: evaluate the future
+        - Given a policy
+    - Control: optimise the future
+        - Find the best policy
+-->
+----
+ 
+
+
+## How can we try to solve it?
+
+. . .
+
+1. **Random exploration**  
+    - Adding some noise to a greedy policy
+    - Examples: $\epsilon$-greedy, Softmax
+
+. . .
+
+2. **Optimism in the face of uncertainty**  
+    - Using all available information, estimate uncertainty on value 
+    - Prefer to explore uncertain states/actions
+    - Examples: Optimistic initialisation, Upper Confidence Bound, Thompson sampling, Expected Improvement, Probability of Improvement
+
+. . . 
+
+3. **Information state space search**  
+    - Considering agent's information in its state space
+    - Lookahead to determine how information helps in maximizing rewards
+    - Examples: Gittins indices (see Whittle, 1980), tractable approximation with Bayesian Adaptive Monte Carlo Planning (Guez, Silver, Dayan, 2012; 2014)
+
+<!-- 
+
+draw on silvers 9th lecture
+
+1. Can do well 
+- actually fits people rather well (softmax)
+
+2. optimism
+- heuristics ultimately
+- We need a measure of uncertainty! 
+    - not easy to get, 
+    - we need probabilistic treatment of the problem 
+    - not always true, you can use counts as proxies in MAB (but not CMAB)
+- in big space we might never stop exploring?
+- sometimes we need safe exploration (robot example, or humans)
+
+3. More optimal strategies  
+- estimating the value of information (WTP for exploring, LR reward with info minus immediate reward w/o info)
+- convert MAB problem into a MDP, where we have information states 
+- say, number each arm has been pulled - now we can simulate what happens with each decision, how information state changes)
+- we traverse the tree, and if we can solve the MDP we have an optimal solution
+- BUT, usually intractable :)  
+- better for a fixed budget
+- we will not cover these
+    - first, I'm not an expert
+    - second, computationally very expensive, and we need fast evaluation otherwise we get a harder problem than training the function
+    - still an approximation, optimal solutions for very narrow set of problems 
+    - more relevant for dynamical systems where state changes upon action, and we have delayed rewards
+-  Gittins indices are here 
+   - truly optimal allocation, 
+   - but restricted to narrow set of situations - Bernoulli bandits
+   - bayes adaptive rl
+
+ -->
+
+----
+
