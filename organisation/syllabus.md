@@ -5,17 +5,15 @@ Lecturer: Hrvoje Stojić, University College London and BGSE
 
 ## Overview and Objectives
 
-Bayesian optimization is a framework for modelling situations where one wants to learn functions in a supervised manner, but also smartly select inputs with the idea of making the maximization more efficient. Related ideas can be found in other fields of machine learning and statistics, such as active learning or optimal experimental design. This framework has been used in modelling autonomous agents and solving certain types of reinforcement learning problems, but its usage recently blossomed due to applications in optimizing (hyper)parameters of models that are costly to evaluate. Use-cases include optimizing the architecture of deep learning networks or optimizing parameters of scheduling and planning optimizers that have a long runtime. The objective of the course is to provide you with a basic understanding of the theory behind the Bayesian optimization, and equip you with sufficient amount of know-how to immediately incorporate it into your workflow and substitute less efficient grid-search methods. Bayesian optimization is a general framework and we will illustrate other use-cases.
+Bayesian optimization is a framework for modelling situations where one wants to learn functions in a supervised manner, but also smartly select inputs with the idea of making the maximization more efficient. Related ideas can be found in other fields of machine learning and statistics, such as active learning or optimal experimental design. This framework has been used in modelling autonomous agents and solving certain types of reinforcement learning problems, but its usage recently blossomed due to applications in optimizing (hyper)parameters of models that are costly to evaluate. Use-cases include optimizing the hyperparameters of deep neural networks or optimizing parameters of scheduling and planning optimizers that have a long runtime. The objective of the course is to provide you with a basic understanding of the theory behind the Bayesian optimization, and equip you with sufficient amount of know-how to immediately incorporate it into your workflow and substitute less efficient grid-search methods. Bayesian optimization is a general framework and we will illustrate other use-cases.
 
 
 
 ## Course Outline
 
-**Introduction to Reinforcement Learning and Gaussian Processes** 
 We will first briefly introduce the reinforcement learning problem and distinguish it from other types of machine learning problems, providing an overview of basic concepts, such as multi-armed bandit problems or exploration-exploitation trade-off. We will spend more time on basics of the Gaussian processes - great supervised learning method which gives you the full Bayesian non-parametric treatment. We will focus on regression problems and you will learn how to deploy Gaussian processes in practice.
 
-**Bayesian Optimization**
-In this section we will examine contextual multi-armed bandit problem in more details and uncertainty-based decision strategies for balancing the exploration-exploitation trade-off. Together with Gaussian processes this will allow us to formulate the Bayesian optimization algorithm and illustrate some of its many potential uses. We will focus on one particular use case - you will learn how to use it for optimizing hyper-parameters.
+Next we will examine contextual multi-armed bandit problem in more details and uncertainty-based decision strategies for balancing the exploration-exploitation trade-off. Together with Gaussian processes this will allow us to formulate the Bayesian optimization algorithm and illustrate some of its many potential uses. We will focus on one particular use case - you will learn how to use it for optimizing hyper-parameters.
 
 
 
