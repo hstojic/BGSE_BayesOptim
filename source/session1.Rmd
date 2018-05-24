@@ -1,7 +1,13 @@
 ---
-title: "Bayesian optimization - Lecture 1"
+title: "Bayesian optimization - part 1"
 author: "Hrvoje Stojic"
-date: "May 25, 2017"
+date: "May 24, 2018"
+header-includes:
+   - \usepackage[absolute,overlay]{textpos}
+   - \setbeamercolor{framesource}{fg=gray}
+   - \setbeamerfont{framesource}{size=\tiny}
+   - \newcommand{\source}[1]{\begin{textblock*}{8cm}(0.5cm,8.9cm)\begin{beamercolorbox}[ht=0.5cm,left]{framesource}\usebeamerfont{framesource}\usebeamercolor[fg]{framesource} Source:~{#1}\end{beamercolorbox}\end{textblock*}}
+   - \usepackage{hyperref}
 output: 
   beamer_presentation:
     theme: "boxes"
@@ -125,7 +131,13 @@ Advantages?
 How do we go about this?
 - anyone tried any of the alternatives? any ideas?
 
-This makes sense only if this optimization problem is less costly than the original training
+Decision making part complicates things significantly:
+- choice affects how much you can learn from the observation
+- what you know about the surface affects your choices
+- this is probably why these algorithms have not been more popular
+
+Arent we changing a hard optimization problem for an even harder one?
+- This makes sense only if this optimization problem is less costly than the original training
 - hence, we dont use it for models that are quick to train  
 
 -->
@@ -133,12 +145,16 @@ This makes sense only if this optimization problem is less costly than the origi
 
 
 
-## The main goal - Automated statistician and hyperparameter tuning
+## The main goal: AutoML and hyperparameter tuning
 
 \includegraphics[width=0.5\textwidth]{figs/Snoek.png}\hfill
 \includegraphics[width=0.5\textwidth]{figs/Bergstra.png}
+\source{Snoek et al 2012; Bergstra et al 2011}
 
-Source: Snoek et al 2012; Bergstra et al 2011
+. . .
+
+- CIFAR 10: state of the art was test error of 18%, they achieved 14.98%  
+- MNIST rotated background images
 
 <!-- 
 
@@ -155,12 +171,23 @@ Bergstra 2011
 ----
 
 
-## Entrepreneurship
+## Bayesian optimization going mainstream
 
 \center
 \includegraphics[width=\textwidth]{figs/sigopt.png}
+\source{\href{https://www.sigopt.com}{SigOpt webpage}}
 
-Source: [SigOpt webpage](https://www.sigopt.com)
+<!-- 
+
+-->
+----
+
+
+## Google Cloud AutoML for computer vision
+
+\center
+\includegraphics[width=\textwidth]{figs/googleautoml.png}
+\source{\href{https://cloud.google.com/automl/}{Google AutoML webpage}}
 
 <!-- 
 
@@ -173,7 +200,7 @@ Source: [SigOpt webpage](https://www.sigopt.com)
 \center
 \includegraphics[width=\textwidth]{figs/ABtesting.png}
 
-Source: [Wikipedia](https://en.wikipedia.org/wiki/A/B_testing#/media/File:A-B_testing_example.png)
+\source{\href{https://en.wikipedia.org/wiki/A/B_testing}{Wikipedia}}
 
 <!-- 
 
@@ -186,7 +213,7 @@ Source: [Wikipedia](https://en.wikipedia.org/wiki/A/B_testing#/media/File:A-B_te
 \center
 \includegraphics[width=0.9\textwidth]{figs/criteo.png}
 
-Source: [Criteo webpage](https://www.criteo.com)
+\source{\href{https://www.criteo.com}{Criteo webpage}}
 
 <!-- 
 
@@ -199,7 +226,7 @@ Source: [Criteo webpage](https://www.criteo.com)
 \center
 \includegraphics[width=0.9\textwidth]{figs/netflix.png}
 
-Source: [Netflix webpage](https://www.netflix.com)
+\source{\href{https://www.netflix.com}{Netflix webpage}}
 
 <!-- 
 preference learning 
@@ -214,9 +241,9 @@ preference learning
 ## Bonus - Combinatorial optimization
 
 \center
-\includegraphics[width=0.65\textwidth]{figs/salesman.png}
+\includegraphics[width=0.6\textwidth]{figs/salesman.png}
 
-Source: [Wikipedia](https://en.wikipedia.org/wiki/Travelling_salesman_problem#/media/File:GLPK_solution_of_a_travelling_salesman_problem.svg)
+\source{\href{https://en.wikipedia.org/wiki/Travelling_salesman_problem}{Wikipedia}}
 
 <!-- 
 
@@ -256,7 +283,7 @@ Mixed Integer Programming Solvers
 
 <!-- 
 Another reason for going into RL
-- you will understand the problem at a deeper level which will allow you to apply BO in wider number of setups, not just the 
+- you will understand the problem at a deeper level which will allow you to apply BO in wider number of setups, not just the hyperparameter optimization
 -->
 ----
 
@@ -291,7 +318,7 @@ Another reason for going into RL
     + rBayesianOptimization (Yan) 
     + DiceOptim (Roustant et al., 2012)
 - Python libraries  
-    + scikit-learn  
+    + scikit-learn, auto-sklearn  
     + Hyperopt (Bergstra et al., 2011)  
     + Spearmint (Snoek et al., 2014)
 - Matlab  
@@ -300,6 +327,7 @@ Another reason for going into RL
     + BayesOpt (Martinez-Cantin, 2014)  
 - Java  
     + SMAC (Hutter et al., 2011)  
+    + AutoWEKA
 
 ----
 
@@ -312,7 +340,7 @@ Another reason for going into RL
 
 - Evaluation:  
     + No exam  
-    + Individual problem set (two coding exercises): 40%
+    + Individual coding exercise: 40%
     + Group projects: 60%
     + Deadline: June 20
 
@@ -328,7 +356,7 @@ Another reason for going into RL
 \center
 \includegraphics[width=0.8\textwidth]{figs/manyfaces.png}
 
-Source: [David Silver lectures](http://www0.cs.ucl.ac.uk/staff/D.Silver/web/Teaching.html)
+\source{\href{http://www0.cs.ucl.ac.uk/staff/D.Silver/web/Teaching.html}{David Silver lectures}}
 
 <!-- 
 Lot of different approaches
@@ -350,7 +378,7 @@ Psychology probably the earliest
 \center
 \includegraphics[width=0.8\textwidth]{figs/relationtootherlearning.png}
 
-Source: [David Silver lectures](http://www0.cs.ucl.ac.uk/staff/D.Silver/web/Teaching.html)
+\source{\href{http://www0.cs.ucl.ac.uk/staff/D.Silver/web/Teaching.html}{David Silver lectures}}
 
 <!-- 
 In some ways signal is stronger than in unsupervised and weaker than supervised.
@@ -446,7 +474,7 @@ Do you agree with this statement?
 \center
 \includegraphics[width=0.6\textwidth]{figs/agentenvironment.png}
 
-Source: [David Silver lectures](http://www0.cs.ucl.ac.uk/staff/D.Silver/web/Teaching.html)
+\source{\href{http://www0.cs.ucl.ac.uk/staff/D.Silver/web/Teaching.html}{David Silver lectures}}
 
 <!-- 
 At each step t the agent:
@@ -642,7 +670,7 @@ Model:
 \includegraphics[width=0.25\textwidth]{figs/hallway3.png}\hfill
 \includegraphics[width=0.3\textwidth]{figs/hallway2.png}
 
-Source: Sutton, Precup & Singh (1999). Between MDPs and semi-MDPs: A framework for temporal abstraction in reinforcement learning. Artificial Intelligence, 112 (1-2), 181-211.
+\source{Sutton, Precup \& Singh (1999). Between MDPs and semi-MDPs: A framework for temporal abstraction in reinforcement learning. Artificial Intelligence, 112 (1-2), 181-211.}
 
 <!-- 
 Problem setup 
