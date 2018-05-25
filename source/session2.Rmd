@@ -1,7 +1,13 @@
 ---
-title: "Bayesian optimization - Lecture 2"
+title: "Bayesian optimization - part 2"
 author: "Hrvoje Stojic"
-date: "May 26, 2017"
+date: "May 25, 2018"
+header-includes:
+   - \usepackage[absolute,overlay]{textpos}
+   - \setbeamercolor{framesource}{fg=gray}
+   - \setbeamerfont{framesource}{size=\tiny}
+   - \newcommand{\source}[1]{\begin{textblock*}{8cm}(0.5cm,8.9cm)\begin{beamercolorbox}[ht=0.5cm,left]{framesource}\usebeamerfont{framesource}\usebeamercolor[fg]{framesource} Source:~{#1}\end{beamercolorbox}\end{textblock*}}
+   - \usepackage{hyperref}
 output: 
   beamer_presentation:
     theme: "boxes"
@@ -72,9 +78,10 @@ output:
 
 For optimizing hyperpars?
 - as if you have locations/grid of hyperpar combinations, with each attempt you get some stochastic draw, you want to get at the best location in the grid
+- actually, this would still be better than grid search, as you don't need to necessarily do a full cross-validation, much cheaper!
 
 What is MAB good for?
-- Alternative to AB testing, another way to do expeirments  
+- Alternative to AB testing, another way to do experiments  
 - you want your users to spend as little time as possible in bad versions of the website/recommender system etc
 
 -->
@@ -89,7 +96,7 @@ What is MAB good for?
 
 . . . 
 
-- The **optimal value** $V^*$ is $V^* = Q(a^*) = \textrm{max}_{a \in \mathcal{A}} Q(a)$  
+- The **optimal value** is $V^* = Q(a^*) = \textrm{max}_{a \in \mathcal{A}} Q(a)$  
 
 . . . 
 
@@ -103,8 +110,10 @@ What is MAB good for?
     + The cumulative regret, stated differently: $$L_t = \sum_{a \in \mathcal{A}} E[N_t(a)] (V^* - Q(a)) = \sum_{a \in \mathcal{A}} E[N_t(a)] \Delta_a$$  
 
 <!-- 
-- Maximise cumulative reward ≡ minimise total regret
+- Maximising cumulative reward or minimising total regret?
+    - there are subtle differences
     - can be made independent of scaling? some advantage?
+    - nonparametric
     - fnc of gaps and counts
     - good algo ensures small N for large gaps
     - problem: gaps are not known!
@@ -114,7 +123,7 @@ What is MAB good for?
 
 ## Random exploration approaches
 
-- We consider algorithms that estimate $\hat{Q}_t(a) \approx Q(a)$, by simply tracking the means $$ \hat{Q}_t(a) = \frac{1}{N_t(a)} \sum^T_{t=1} r_t \mathbf{1}(a_t=a)$$ or $$ \hat{Q}_t(a) = \hat{Q}_{t-1}(a) + \alpha (r_t - \hat{Q}_{t-1}(a))$$
+- We consider algorithms that estimate $\hat{Q}_t(a) \approx Q(a)$, by tracking the means $$ \hat{Q}_t(a) = \frac{1}{N_t(a)} \sum^T_{t=1} r_t \mathbf{1}(a_t=a)$$ or $$ \hat{Q}_t(a) = \hat{Q}_{t-1}(a) + \alpha (r_t - \hat{Q}_{t-1}(a))$$
 
 . . . 
 
@@ -149,7 +158,7 @@ softmax
 \center
 \includegraphics[width=\textwidth]{figs/linearregret.png}
 
-Source: [David Silver lectures](http://www0.cs.ucl.ac.uk/staff/D.Silver/web/Teaching.html)
+\source{\href{http://www0.cs.ucl.ac.uk/staff/D.Silver/web/Teaching.html}{David Silver lectures}}
 
 <!-- 
 
@@ -171,11 +180,11 @@ there is a lower bound for mab
 
 ## Lower bound on regret
  
-- Asymptotic total regret is at least logarithmic in number of steps (Lai & Robbins, 1985) $$\textrm{lim}_{t \to \infty} \ge \textrm{log}t \sum_{a|\Delta_a > 0} \frac{\Delta_a}{KL(\mathcal{R}^a \parallel \mathcal{R}^{a^*})}$$
+> - Asymptotic total regret is at least logarithmic in number of steps (Lai & Robbins, 1985) $$\textrm{lim}_{t \to \infty} \ge \textrm{log} t \sum_{a|\Delta_a > 0} \frac{\Delta_a}{KL(\mathcal{R}^a \parallel \mathcal{R}^{a^*})}$$
 
-- Logarithmic regret, the second term (task difficulty) is a scalar  
-    + KL divergence says how similar the reward distributions of two arms are
-    + The difference in expected rewards between the arms is described by the gap, $\Delta_a$
+> - $\textrm{log} t$ is the important bit, the second term is a constant, roughly task difficulty    
+>     + KL divergence says how similar the reward distributions of two arms are
+>     + The difference in expected rewards between the arms is described by the gap, $\Delta_a$
 
 
 <!-- 
@@ -192,8 +201,11 @@ KL divergence
 
 \center
 \includegraphics[width=\textwidth]{figs/posteriors.png}
+\source{\href{http://www0.cs.ucl.ac.uk/staff/D.Silver/web/Teaching.html}{David Silver lectures}}
 
-Source: [David Silver lectures](http://www0.cs.ucl.ac.uk/staff/D.Silver/web/Teaching.html)
+. . .
+
+- any disadvantages?
 
 <!-- 
 
@@ -228,7 +240,7 @@ Some of the issues:
         * e.g. $\epsilon_t = \textrm{min} \{1, \frac{c|\mathcal{A}|}{\textrm{min}_a \Delta_a t}\}$
     + Has logarithmic asymptotic total regret (for known gaps)
     + In practice very good performance  
-    + Difficult to tune the decay
+    + But difficult to tune the decay
 
 <!-- 
 
@@ -269,8 +281,9 @@ Counts -
 - very little prior knowledge! no need to assume a distribution
 
 This depends on the number of times N(a) has been selected
-Small N t (a) ⇒ large Û t (a) (estimated value is uncertain)
-Large N t (a) ⇒ small Û t (a) (estimated value is accurate)
+- Small N t (a) ⇒ large Û t (a) (estimated value is uncertain)
+- Large N t (a) ⇒ small Û t (a) (estimated value is accurate)
+- if you stop choosing it, uncertainty terms increases, but more slowly
 
 Assumes...
 - t goes to infinity
@@ -307,7 +320,7 @@ there are various variants, whole family, using slightly different bounds
 \center
 \includegraphics[width=\textwidth]{figs/UCBcomparison.png}
 
-Source: Auer, P., Cesa-Bianchi, N., & Fischer, P. (2002). Finite-time analysis of the multiarmed bandit problem. Machine Learning, 47, 235-256. 
+\source{Auer, P., Cesa-Bianchi, N., \& Fischer, P. (2002). Finite-time analysis of the multiarmed bandit problem. Machine Learning, 47, 235-256.}
 
 <!-- 
 
@@ -421,7 +434,7 @@ Disadvantages
 \includegraphics[width=0.55\textwidth]{figs/betabernoulli_algo.png}\hfill
 \includegraphics[width=0.45\textwidth]{figs/betabernoulli.png}
 
-Source: Shahriari, B., Swersky, K., Wang, Z., Adams, R. P., & de Freitas, N. (2016). Taking the Human Out of the Loop: A Review of Bayesian Optimization. Proceedings of the IEEE, 104(1), 148-175. 
+\source{Shahriari, B., Swersky, K., Wang, Z., Adams, R. P., \& de Freitas, N. (2016). Taking the Human Out of the Loop: A Review of Bayesian Optimization. Proceedings of the IEEE, 104(1), 148-175.}
 
 <!-- 
 
@@ -445,7 +458,7 @@ states (or "contexts")
 - $\mathcal{R}^a(r) = P[r|s,a]$ is an unknown probability distribution over rewards  
 
 - At each step $t$ 
-    + The environment generates state $s_t \sim \mathcal{s}$  
+    + The environment generates state $s_t \sim \mathcal{S}$  
     + The agent selects an action $a_t \in \mathcal{A}$  
     + The environment generates a reward $r_t \sim \mathcal{R}_{s_t}^{a_t}$  
 
@@ -539,7 +552,7 @@ K(X_\star, X) & K(X_\star, X_\star)
 \center
 \includegraphics[width=\textwidth]{figs/GPpriorpost.png}
 
-Source: Rasmussen, Williams (2006)
+\source{Rasmussen, Williams (2006)}
 
 ----
 
@@ -549,7 +562,7 @@ Source: Rasmussen, Williams (2006)
 \center
 \includegraphics[width=0.8\textwidth]{figs/GPhyperdep.png}
 
-Source: Rasmussen, Williams (2006)
+\source{Rasmussen, Williams (2006)}
 
 ----
 
@@ -559,7 +572,7 @@ Source: Rasmussen, Williams (2006)
 \center
 \includegraphics[width=0.8\textwidth]{figs/GPmatern.png}
 
-Source: Rasmussen, Williams (2006)
+\source{Rasmussen, Williams (2006)}
 
 ----
 
@@ -570,7 +583,7 @@ Source: Rasmussen, Williams (2006)
 \center
 \includegraphics[width=0.7\textwidth]{figs/GPalgo.png}
 
-Source: Rasmussen, Williams (2006)
+\source{Rasmussen, Williams (2006)}
 
 
 ----
@@ -653,7 +666,7 @@ Intuitively, this makes sense. If we maximize the expected improvement, we will 
 \center
 \includegraphics[width=0.7\textwidth]{figs/acqillustration.png}
 
-Source: Shahriari et al (2016)
+\source{Shahriari et al (2016)}
 
 ----
 
@@ -686,7 +699,7 @@ Some guarantees: exact optimizer is found and selected, not known usually
 \center
 \includegraphics[width=0.6\textwidth]{figs/acqoptimization.png}
 
-Source: Shahriari et al (2016)
+\source{Shahriari et al (2016)}
 
 ----
 
@@ -793,7 +806,7 @@ see Snoek pg 4
 \center
 \includegraphics[width=0.5\textwidth]{figs/integratedacquisition.png}
 
-Source: Snoek et al (2012). Practical Bayesian Optimization of Machine Learning Algorithms. In Advances in Neural Information Processing Systems (pp. 2951–2959). 
+\source{Snoek et al (2012). Practical Bayesian Optimization of Machine Learning Algorithms. In Advances in Neural Information Processing Systems (pp. 2951–2959).} 
 
 <!-- 
 -->
@@ -824,7 +837,7 @@ Source: Snoek et al (2012). Practical Bayesian Optimization of Machine Learning 
 \center
 \includegraphics[width=0.8\textwidth]{figs/EIpersec.png}
 
-Source: Snoek et al (2012). Practical Bayesian Optimization of Machine Learning Algorithms. In Advances in Neural Information Processing Systems (pp. 2951–2959). 
+\source{Snoek et al (2012). Practical Bayesian Optimization of Machine Learning Algorithms. In Advances in Neural Information Processing Systems (pp. 2951–2959).} 
 
 <!-- 
 -->
@@ -852,7 +865,7 @@ Source: Snoek et al (2012). Practical Bayesian Optimization of Machine Learning 
 \center
 \includegraphics[width=0.5\textwidth]{figs/EIparallel.png}
 
-Source: Snoek et al (2012). Practical Bayesian Optimization of Machine Learning Algorithms. In Advances in Neural Information Processing Systems (pp. 2951–2959). 
+\source{Snoek et al (2012). Practical Bayesian Optimization of Machine Learning Algorithms. In Advances in Neural Information Processing Systems (pp. 2951–2959).} 
 
 <!-- 
 -->
